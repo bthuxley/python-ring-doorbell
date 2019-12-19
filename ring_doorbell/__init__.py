@@ -9,6 +9,7 @@ except ImportError:
 import logging
 import time
 import requests
+import jwt
 
 from ring_doorbell.utils import _exists_cache, _save_cache, _read_cache
 
@@ -35,6 +36,7 @@ class Ring(object):
         """Initialize the Ring object."""
         self.is_connected = None
         self.token = None
+        self.oauth_token = None
         self.params = None
         self._persist_token = persist_token
         self._push_token_notify_url = push_token_notify_url
@@ -89,15 +91,24 @@ class Ring(object):
 
     def _get_oauth_token(self):
         """Return Oauth Bearer token."""
+        if self.oauth_token is not None:
+            try:
+                jwt.decode(self.oauth_token)
+                return self.oauth_token  # token still ok
+            except jwt.ExpiredSignatureError:
+                if self.debug:
+                    _LOGGER.debug("Token expired %s", self.oauth_token)
+                # expired oauth token, request a new one
         oauth_data = OAUTH_DATA.copy()
         oauth_data['username'] = self.username
         oauth_data['password'] = self.password
         response = self.session.post(OAUTH_ENDPOINT,
-                                     data=oauth_data,
-                                     headers=HEADERS)
+                                    data=oauth_data,
+                                    headers=HEADERS)
         oauth_token = None
         if response.status_code == 200:
             oauth_token = response.json().get('access_token')
+            self.oauth_token = oauth_token
         return oauth_token
 
     def _authenticate(self, attempts=RETRY_TOKEN, session=None):

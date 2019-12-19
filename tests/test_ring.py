@@ -12,6 +12,8 @@ class TestRing(RingUnitTestBase):
     @requests_mock.Mocker()
     def test_basic_attributes(self, mock):
         """Test the Ring class and methods."""
+        mock.post('https://oauth.ring.com/oauth/token',
+            text=load_fixture('ring_oauth.json'))
         mock.get('https://api.ring.com/clients_api/ring_devices',
                  text=load_fixture('ring_devices.json'))
         mock.get('https://api.ring.com/clients_api/chimes/999999/health',
